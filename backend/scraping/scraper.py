@@ -5,6 +5,7 @@ def extract_raw_text_from_url(url: str) -> str:
     """Fetches the full visible text content from a recipe page."""
     response = requests.get(url)
     response.raise_for_status()
+    response.encoding = 'utf-8'
 
     soup = BeautifulSoup(response.text, "html.parser")
 

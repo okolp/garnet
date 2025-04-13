@@ -16,4 +16,4 @@ def extract_recipe_from_url(request: RecipeRequest):
         recipe_data = process_recipe_text_with_ai(raw_text)
         return {"recipe": recipe_data}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
