@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-
 void main() {
   runApp(const MyApp());
 }
@@ -15,7 +14,38 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Recipe Importer',
       theme: ThemeData(primarySwatch: Colors.deepOrange),
-      home: const RecipeUrlInputPage(),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = [
+    const RecipeUrlInputPage(),
+    const RecipeListPage(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (int index) => setState(() => _selectedIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Import URL'),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Saved Recipes'),
+        ],
+      ),
     );
   }
 }
@@ -38,7 +68,7 @@ Future<void> _submitUrl() async {
     _recipe = null;
   });
 
-  final url = Uri.parse('http://127.0.0.1:8000/recipes/from-url'); // Windows desktop
+  final url = Uri.parse('http://127.0.0.1:8000/recipes/from-url/');
   final response = await http.post(
     url,
     headers: {"Content-Type": "application/json"},
@@ -47,9 +77,25 @@ Future<void> _submitUrl() async {
 
   if (response.statusCode == 200) {
     final decodedBody = utf8.decode(response.bodyBytes);
-    final data = jsonDecode(decodedBody);;
+    final data = jsonDecode(decodedBody);
+    final recipe = data['recipe'];
+
+    // Step 2: Save to DB
+    final saveResponse = await http.post(
+      Uri.parse('http://127.0.0.1:8000/recipes/save/'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(recipe),
+    );
+
+    if (saveResponse.statusCode == 200) {
+      final saveResult = jsonDecode(saveResponse.body);
+      print("✅ Saved recipe with ID: ${saveResult["id"]}");
+    } else {
+      print("❌ Failed to save recipe: ${saveResponse.statusCode}");
+    }
+
     setState(() {
-      _recipe = data['recipe'];
+      _recipe = recipe;
     });
   } else {
     setState(() {
@@ -63,30 +109,30 @@ Future<void> _submitUrl() async {
 }
 
 
-Widget _buildRecipeDetails() {
-  if (_recipe == null) return const SizedBox();
-  if (_recipe!.containsKey("error")) {
-    return Text(_recipe!["error"], style: const TextStyle(color: Colors.red));
+  Widget _buildRecipeDetails() {
+    if (_recipe == null) return const SizedBox();
+    if (_recipe!.containsKey("error")) {
+      return Text(_recipe!["error"], style: const TextStyle(color: Colors.red));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("🍽 Title: ${_recipe!["title"]}",
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        Text("🏷 Tags: ${(_recipe!["tags"] as List).join(', ')}"),
+        const SizedBox(height: 10),
+        Text("📝 Ingredients:\n${(_recipe!["ingredients"] as List).join('\n')}"),
+        const SizedBox(height: 10),
+        Text("📋 Steps:\n${(_recipe!["steps"] as List).join('\n')}"),
+        const SizedBox(height: 10),
+        _recipe!["image_url"] != null
+            ? Image.network(_recipe!["image_url"], height: 150)
+            : const Text("No image provided"),
+      ],
+    );
   }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text("🍽 Title: ${_recipe!["title"]}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 10),
-      Text("🏷 Tags: ${(_recipe!["tags"] as List).join(', ')}"),
-      const SizedBox(height: 10),
-      Text("📝 Ingredients:\n${(_recipe!["ingredients"] as List).join('\n')}"),
-      const SizedBox(height: 10),
-      Text("📋 Steps:\n${(_recipe!["steps"] as List).join('\n')}"),
-      const SizedBox(height: 10),
-      _recipe!["image_url"] != null
-          ? Image.network(_recipe!["image_url"], height: 150)
-          : const Text("No image provided"),
-    ],
-  );
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +160,117 @@ Widget _buildRecipeDetails() {
             Expanded(child: SingleChildScrollView(child: _buildRecipeDetails())),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class RecipeListPage extends StatefulWidget {
+  const RecipeListPage({super.key});
+
+  @override
+  State<RecipeListPage> createState() => _RecipeListPageState();
+}
+class RecipeDetailPage extends StatelessWidget {
+  final Map<String, dynamic> recipe;
+
+  const RecipeDetailPage({super.key, required this.recipe});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(recipe["title"] ?? "Recipe Detail")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
+          children: [
+            recipe["image_url"] != null
+                ? Image.network(recipe["image_url"], height: 180)
+                : const Text("No image provided"),
+            const SizedBox(height: 16),
+            Text("🏷 Tags: ${recipe["tags"].join(', ')}"),
+            const SizedBox(height: 16),
+            Text(
+              "📝 Ingredients:",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            ...recipe["ingredients"].map<Widget>((item) => Text("- $item")),
+            const SizedBox(height: 16),
+            Text(
+              "📋 Steps:",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            ...recipe["steps"].map<Widget>((step) => Text("• $step")),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _RecipeListPageState extends State<RecipeListPage> {
+  late Future<List<Map<String, dynamic>>> _recipes;
+
+  Future<List<Map<String, dynamic>>> fetchRecipes() async {
+    final response = await http.get(Uri.parse('http://127.0.0.1:8000/recipes/'));
+
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(decoded);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load recipes: ${response.statusCode}');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _recipes = fetchRecipes();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Saved Recipes")),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _recipes,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("No recipes found."));
+          }
+
+          final recipes = snapshot.data!;
+          return ListView.builder(
+            itemCount: recipes.length,
+            itemBuilder: (context, index) {
+              final recipe = recipes[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: recipe['image_url'] != null
+                      ? Image.network(recipe['image_url'], width: 60, fit: BoxFit.cover)
+                      : const Icon(Icons.image_not_supported),
+                  title: Text(recipe['title'] ?? 'No title'),
+                  subtitle: Text((recipe['tags'] as List).join(', ')),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RecipeDetailPage(recipe: recipe),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
