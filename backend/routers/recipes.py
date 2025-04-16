@@ -9,7 +9,7 @@ router = APIRouter(prefix="/recipes", tags=["Recipes"])
 class RecipeRequest(BaseModel):
     url: HttpUrl
 
-@router.post("/from-url/")
+@router.post("/from-url")
 def extract_recipe_from_url(request: RecipeRequest):
     try:
         raw_text = extract_raw_text_from_url(request.url)
@@ -26,7 +26,7 @@ from dependencies import get_db
 from models.recipe import Recipe as DBRecipe
 
 
-@router.post("/save/")
+@router.post("/save")
 def save_recipe(recipe: dict, db: Session = Depends(get_db)):
     db_recipe = DBRecipe(
         title=recipe["title"],
@@ -61,7 +61,7 @@ def get_all_recipes(db: Session = Depends(get_db)):
         for r in recipes
     ]
 
-@router.delete("/{recipe_id}/delete/")
+@router.delete("/{recipe_id}/delete")
 def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
     recipe = db.query(DBRecipe).filter(DBRecipe.id == recipe_id).first()
     if not recipe:
@@ -69,3 +69,36 @@ def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
     db.delete(recipe)
     db.commit()
     return {"message": f"Recipe {recipe_id} deleted successfully"}
+
+from pydantic import BaseModel
+from typing import List, Optional
+
+class RecipeUpdateRequest(BaseModel):
+    title: str
+    ingredients: List[str]
+    steps: List[str]
+    tags: Optional[List[str]] = []
+    image_url: Optional[str] = None
+
+@router.put("/{recipe_id}/edit")
+def update_recipe(recipe_id: int, update: RecipeUpdateRequest, db: Session = Depends(get_db)):
+    recipe = db.query(DBRecipe).filter(DBRecipe.id == recipe_id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+
+    recipe.title = update.title
+    recipe.ingredients = update.ingredients
+    recipe.steps = update.steps
+    recipe.tags = update.tags
+    recipe.image_url = update.image_url
+
+    db.commit()
+    db.refresh(recipe)
+    return {"message": f"Recipe {recipe_id} updated", "recipe": {
+        "id": recipe.id,
+        "title": recipe.title,
+        "ingredients": recipe.ingredients,
+        "steps": recipe.steps,
+        "tags": recipe.tags,
+        "image_url": recipe.image_url
+    }}
