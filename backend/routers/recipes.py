@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
 
-from scraping.scraper import extract_raw_text_from_url
+from scraping.scraper import extract_raw_text_and_image
 from services.ai_processor import process_recipe_text_with_ai
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
@@ -12,13 +12,17 @@ class RecipeRequest(BaseModel):
 @router.post("/from-url")
 def extract_recipe_from_url(request: RecipeRequest):
     try:
-        raw_text = extract_raw_text_from_url(request.url)
-        recipe_data = process_recipe_text_with_ai(raw_text)
+        scraped = extract_raw_text_and_image(request.url)
+        recipe_data = process_recipe_text_with_ai(scraped["text"])
+
+        # Fallback to scraped image if AI didn't return one
+        if not recipe_data.get("image_url") and scraped.get("image_url"):
+            recipe_data["image_url"] = scraped["image_url"]
+
         return {"recipe": recipe_data}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session

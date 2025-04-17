@@ -26,7 +26,7 @@ Here's how you should operate:
     *   `title` (string): The title of the recipe.
     *   `ingredients` (list of strings): A list of ingredients required for the recipe.  Each ingredient should be a short, descriptive string.
     *   `steps` (list of strings): A list of steps to prepare the recipe. Each step should be a short, concise instruction. Each step is one action.
-    *   `tags` (list of strings): A list of 3-5 keywords or tags that describe the recipe (e.g., "dinner", "vegan", "quick", "italian").
+    *   `tags` (list of strings): A list of 3-5 keywords or tags that describe the recipe, must be from the list provided below.
     *   `image_url` (string, optional): If the recipe text includes a URL to an image of the finished dish, extract it. If there is no image URL, set this to `null`.
 
 3.  **Output JSON Only:** Your response MUST be a valid JSON object representing the extracted recipe data.  Do NOT include any introductory text, explanations, or other extraneous content. Do NOT include any markdown formatting (e.g., code blocks). Return ONLY the JSON.
@@ -47,13 +47,15 @@ Here's how you should operate:
         "Bake at 350F for 20 minutes."
       ],
       "tags": [
-        "baking",
-        "dessert",
-        "easy"
+        "breakfast",
+        "vegetarian",
+        "italian"
       ],
       "image_url": null
     }}
     ```
+
+5. list of tags: Breakfast, Brunch, Lunch, Dinner, Snack, Appetizer, Side Dish, Dessert, Drink, Soup, Salad, Main Course, Italian, Mexican, Chinese, Japanese, Thai, Indian, Mediterranean, Middle Eastern, French, American, Greek, Korean, Spanish, Vietnamese, Polish, Turkish, One-Pot, Slow Cooker, Instant Pot, Grilled, Baked, Roasted, Air Fryer, Steamed, No-Cook, Raw, Fried, Smoked, Vegetarian, Vegan, Gluten-Free, Dairy-Free, Keto, Low-Carb
 
 Here is the content:
 ---
