@@ -1,8 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
-
 from scraping.scraper import extract_raw_text_and_image
 from services.ai_processor import process_recipe_text_with_ai
+from dependencies import get_current_user
+from models.users import User  # if not already imported
+
+
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
@@ -31,13 +34,14 @@ from models.recipe import Recipe as DBRecipe
 
 
 @router.post("/save")
-def save_recipe(recipe: dict, db: Session = Depends(get_db)):
+def save_recipe(recipe: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_recipe = DBRecipe(
         title=recipe["title"],
         ingredients=recipe["ingredients"],
         steps=recipe["steps"],
         tags=recipe.get("tags", []),
         image_url=recipe.get("image_url"),
+        user_id=current_user.id 
     )
     db.add(db_recipe)
     db.commit()
@@ -51,8 +55,8 @@ from models.recipe import Recipe as DBRecipe
 from dependencies import get_db
 
 @router.get("/")
-def get_all_recipes(db: Session = Depends(get_db)):
-    recipes = db.query(DBRecipe).all()
+def get_all_recipes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    recipes = db.query(DBRecipe).filter(DBRecipe.user_id == current_user.id).all()
     return [
         {
             "id": r.id,
@@ -66,43 +70,36 @@ def get_all_recipes(db: Session = Depends(get_db)):
     ]
 
 @router.delete("/{recipe_id}/delete")
-def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
+def delete_recipe(recipe_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     recipe = db.query(DBRecipe).filter(DBRecipe.id == recipe_id).first()
-    if not recipe:
+
+    if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
+
+    if recipe.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this recipe")
+
     db.delete(recipe)
     db.commit()
-    return {"message": f"Recipe {recipe_id} deleted successfully"}
+    return {"message": "Recipe deleted"}
 
-from pydantic import BaseModel
-from typing import List, Optional
-
-class RecipeUpdateRequest(BaseModel):
-    title: str
-    ingredients: List[str]
-    steps: List[str]
-    tags: Optional[List[str]] = []
-    image_url: Optional[str] = None
 
 @router.put("/{recipe_id}/edit")
-def update_recipe(recipe_id: int, update: RecipeUpdateRequest, db: Session = Depends(get_db)):
+def edit_recipe(recipe_id: int, updated: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     recipe = db.query(DBRecipe).filter(DBRecipe.id == recipe_id).first()
-    if not recipe:
+
+    if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    recipe.title = update.title
-    recipe.ingredients = update.ingredients
-    recipe.steps = update.steps
-    recipe.tags = update.tags
-    recipe.image_url = update.image_url
+    if recipe.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this recipe")
+
+    recipe.title = updated.get("title", recipe.title)
+    recipe.ingredients = updated.get("ingredients", recipe.ingredients)
+    recipe.steps = updated.get("steps", recipe.steps)
+    recipe.tags = updated.get("tags", recipe.tags)
+    recipe.image_url = updated.get("image_url", recipe.image_url)
 
     db.commit()
     db.refresh(recipe)
-    return {"message": f"Recipe {recipe_id} updated", "recipe": {
-        "id": recipe.id,
-        "title": recipe.title,
-        "ingredients": recipe.ingredients,
-        "steps": recipe.steps,
-        "tags": recipe.tags,
-        "image_url": recipe.image_url
-    }}
+    return {"message": "Recipe updated"}

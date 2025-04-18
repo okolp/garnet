@@ -1,6 +1,5 @@
-# backend/models/recipe.py
-from sqlalchemy import Column, Integer, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON
+from sqlalchemy.orm import relationship
 from database import Base
 
 class Recipe(Base):
@@ -8,7 +7,10 @@ class Recipe(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
-    ingredients = Column(ARRAY(Text), nullable=False)
-    steps = Column(ARRAY(Text), nullable=False)
-    tags = Column(ARRAY(String), nullable=True)
+    ingredients = Column(JSON, nullable=False)
+    steps = Column(JSON, nullable=False)
+    tags = Column(JSON, nullable=True)
     image_url = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    user = relationship("User", back_populates="recipes")

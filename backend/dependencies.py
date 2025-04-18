@@ -6,8 +6,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from auth.auth import decode_access_token
 from models.users import User
+from typing import Generator
 
-def get_db() -> Session:
+def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
