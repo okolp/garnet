@@ -1,0 +1,68 @@
+// lib/utils/tags_by_language.dart
+
+/// For each supported language, the exact tag strings you store in your DB.
+const Map<String, List<String>> tagsByLanguage = {
+  'English': [
+    'Breakfast','Brunch','Lunch','Dinner',
+    'Snack','Appetizer','Dessert','Drink',
+    'Soup','Salad','Italian','Mexican',
+    'Chinese','Japanese','Thai','Indian',
+    'Middle Eastern','Greek','Korean',
+    'Spanish','Vietnamese','Polish','Turkish',
+    'Vegetarian','Vegan',
+  ],
+  'German': [
+    'Frühstück','Brunch','Mittagessen','Abendessen',
+    'Snack','Vorspeise','Nachspeise','Getränk',
+    'Suppe','Salat','Italienisch','Mexikanisch',
+    'Chinesisch','Japanisch','Thailändisch','Indisch',
+    'Nahöstlich','Griechisch','Koreanisch',
+    'Spanisch','Vietnamesisch','Polnisch','Türkisch',
+    'Vegetarisch','Vegan',
+  ],
+  'Spanish': [
+    'Desayuno','Brunch','Almuerzo','Cena',
+    'Aperitivo','Snack','Postre','Bebida',
+    'Sopa','Ensalada','Italiano','Mexicano',
+    'Chino','Japonés','Tailandés','Indio',
+    'Medio Oriente','Griego','Coreano',
+    'Español','Vietnamita','Polaco','Turco',
+    'Vegetariano','Vegano',
+  ],
+  'French': [
+    'Petit-déjeuner','Brunch','Déjeuner','Dîner',
+    'Goûter','Apéritif','Dessert','Boisson',
+    'Soupe','Salade','Italien','Mexicain',
+    'Chinois','Japonais','Thaï','Indien',
+    'Moyen-Orient','Grec','Coréen',
+    'Espagnol','Vietnamien','Polonais','Turc',
+    'Végétarien','Végan',
+  ],
+  'Dutch': [
+    'Ontbijt','Brunch','Lunch','Diner',
+    'Snack','Voorgerecht','Nagerecht','Drank',
+    'Soep','Salade','Italiaans','Mexicaans',
+    'Chinees','Japans','Thais','Indiaas',
+    'Midden-Oosten','Grieks','Koreaans',
+    'Spaans','Vietnamees','Pools','Turks',
+    'Vegetarisch','Veganistisch',
+  ],
+  'Polish': [
+    'Śniadanie','Brunch','Obiad','Kolacja',
+    'Przekąska','Przystawka','Deser','Napój',
+    'Zupa','Sałatka','Włoskie','Meksykańskie',
+    'Chińskie','Japońskie','Tajskie','Indyjskie',
+    'Bliski Wschód','Greckie','Koreańskie',
+    'Hiszpańskie','Wietnamskie','Polskie','Tureckie',
+    'Wegetariańskie','Wegańskie',
+  ],
+  'Turkish': [
+    'Kahvaltı','Brunch','Öğle Yemeği','Akşam Yemeği',
+    'Atıştırmalık','Meze','Tatlı','İçecek',
+    'Çorba','Salata','İtalyan','Meksika',
+    'Çin','Japon','Tay','Hint',
+    'Orta Doğu','Yunan','Kore',
+    'İspanyol','Vietnam','Leh','Türk',
+    'Vejeteryan','Vegan',
+  ],
+};

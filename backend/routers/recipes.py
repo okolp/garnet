@@ -1,25 +1,28 @@
-from fastapi import APIRouter, HTTPException
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, HttpUrl
+from sqlalchemy import or_, cast, String
+from sqlalchemy.orm import Session
+
 from scraping.scraper import extract_raw_text_and_image
 from services.ai_processor import process_recipe_text_with_ai
-from dependencies import get_current_user
-from models.users import User  # if not already imported
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from dependencies import get_db
+from dependencies import get_db, get_current_user
+from models.users import User
 from models.recipe import Recipe as DBRecipe
-
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
+
 class RecipeRequest(BaseModel):
     url: HttpUrl
+
 
 @router.post("/from-url")
 def extract_recipe_from_url(
     request: RecipeRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Will be None if not authenticated
+    current_user: User = Depends(get_current_user),  # Will be None if not authenticated
 ):
     try:
         scraped = extract_raw_text_and_image(request.url)
@@ -31,7 +34,7 @@ def extract_recipe_from_url(
         recipe_data = process_recipe_text_with_ai(
             raw_text=scraped["text"],
             language=preferred_language,
-            units=preferred_units
+            units=preferred_units,
         )
 
         # Fallback to scraped image if missing
@@ -44,17 +47,19 @@ def extract_recipe_from_url(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
 @router.post("/save")
-def save_recipe(recipe: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def save_recipe(
+    recipe: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     db_recipe = DBRecipe(
         title=recipe["title"],
         ingredients=recipe["ingredients"],
         steps=recipe["steps"],
         tags=recipe.get("tags", []),
         image_url=recipe.get("image_url"),
-        user_id=current_user.id 
+        user_id=current_user.id,
     )
     db.add(db_recipe)
     db.commit()
@@ -62,14 +67,37 @@ def save_recipe(recipe: dict, db: Session = Depends(get_db), current_user: User 
     return {"id": db_recipe.id, "message": "Recipe saved successfully"}
 
 
-from sqlalchemy.orm import Session
-from fastapi import Depends
-from models.recipe import Recipe as DBRecipe
-from dependencies import get_db
+@router.get("/", response_model=List[dict])
+def get_all_recipes(
+    q: Optional[str]          = Query(None),
+    tags: Optional[List[str]] = Query(None),
+    skip: int                 = Query(0, ge=0),
+    limit: int                = Query(100, ge=1, le=500),
+    db: Session               = Depends(get_db),
+    current_user: User        = Depends(get_current_user),
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-@router.get("/")
-def get_all_recipes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    recipes = db.query(DBRecipe).filter(DBRecipe.user_id == current_user.id).all()
+    query = db.query(DBRecipe).filter(DBRecipe.user_id == current_user.id)
+
+    # 1) Title & ingredients substring search
+    if q:
+        pat = f"%{q}%"
+        query = query.filter(
+            or_(
+                DBRecipe.title.ilike(pat),
+                cast(DBRecipe.ingredients, String).ilike(pat),
+            )
+        ).order_by(DBRecipe.title.ilike(pat).desc())
+
+    # 2) AND‑logic tag filtering (JSON-as-text ILIKE)
+    if tags:
+        for t in tags:
+            query = query.filter(cast(DBRecipe.tags, String).ilike(f'%"{t}"%'))
+
+    recipes = query.offset(skip).limit(limit).all()
+
     return [
         {
             "id": r.id,
@@ -77,13 +105,17 @@ def get_all_recipes(db: Session = Depends(get_db), current_user: User = Depends(
             "ingredients": r.ingredients,
             "steps": r.steps,
             "tags": r.tags,
-            "image_url": r.image_url
+            "image_url": r.image_url,
         }
         for r in recipes
     ]
 
 @router.delete("/{recipe_id}/delete")
-def delete_recipe(recipe_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_recipe(
+    recipe_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     recipe = db.query(DBRecipe).filter(DBRecipe.id == recipe_id).first()
 
     if recipe is None:
@@ -98,7 +130,12 @@ def delete_recipe(recipe_id: int, db: Session = Depends(get_db), current_user: U
 
 
 @router.put("/{recipe_id}/edit")
-def edit_recipe(recipe_id: int, updated: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def edit_recipe(
+    recipe_id: int,
+    updated: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     recipe = db.query(DBRecipe).filter(DBRecipe.id == recipe_id).first()
 
     if recipe is None:

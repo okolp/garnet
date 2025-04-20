@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'screens/login_page.dart';
 import 'screens/home_screen.dart';
 import 'auth/auth_service.dart';
-import 'screens/register_page.dart'; // add at top
+import 'screens/register_page.dart';
 
-
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.loadPreferredLanguage();
   runApp(const GarnetApp());
 }
 
@@ -22,8 +23,7 @@ class GarnetApp extends StatelessWidget {
         '/': (context) => const RootPage(),
         '/login': (context) => const LoginPage(),
         '/home': (context) => const HomeScreen(),
-        '/register': (context) => const RegisterPage(), // add this
-
+        '/register': (context) => const RegisterPage(),
       },
     );
   }

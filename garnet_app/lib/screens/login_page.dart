@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
 import '../auth/auth_service.dart';
 import 'home_screen.dart';
 
@@ -19,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     setState(() => _loading = true);
 
-    final response = await http.post(
+    final resp = await http.post(
       Uri.parse('http://127.0.0.1:8000/auth/login'),
       headers: {"Content-Type": "application/x-www-form-urlencoded"},
       body: {
@@ -27,12 +28,24 @@ class _LoginPageState extends State<LoginPage> {
         "password": _passwordController.text.trim(),
       },
     );
-
     setState(() => _loading = false);
 
-    if (response.statusCode == 200) {
-      final token = jsonDecode(response.body)["access_token"];
+    if (resp.statusCode == 200) {
+      final body = jsonDecode(resp.body);
+      final token = body["access_token"] as String;
       await AuthService.saveToken(token);
+
+      // ---- fetch profile ----
+      final me = await http.get(
+        Uri.parse('http://127.0.0.1:8000/auth/me'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (me.statusCode == 200) {
+        final data = jsonDecode(me.body);
+        final lang = data['preferred_language'] as String? ?? 'English';
+        await AuthService.savePreferredLanguage(lang);
+      }
+      // -----------------------
 
       if (context.mounted) {
         Navigator.pushReplacement(
@@ -42,10 +55,11 @@ class _LoginPageState extends State<LoginPage> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login failed: ${response.statusCode}")),
+        SnackBar(content: Text("Login failed: ${resp.statusCode}")),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +84,14 @@ class _LoginPageState extends State<LoginPage> {
             ElevatedButton(
               onPressed: _loading ? null : _login,
               child: _loading
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text("Login"),
             ),
             TextButton(
