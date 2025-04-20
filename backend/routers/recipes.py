@@ -69,19 +69,15 @@ def save_recipe(
 
 @router.get("/", response_model=List[dict])
 def get_all_recipes(
-    q: Optional[str]          = Query(None),
-    tags: Optional[List[str]] = Query(None),
-    skip: int                 = Query(0, ge=0),
-    limit: int                = Query(100, ge=1, le=500),
-    db: Session               = Depends(get_db),
-    current_user: User        = Depends(get_current_user),
+    q:    Optional[str]          = Query(None),
+    tags: Optional[List[str]]   = Query(None),
+    skip: int                   = Query(0, ge=0),
+    limit: int                  = Query(100, ge=1, le=500),
+    db:   Session               = Depends(get_db),
+    current_user: User          = Depends(get_current_user),
 ):
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-
     query = db.query(DBRecipe).filter(DBRecipe.user_id == current_user.id)
 
-    # 1) Title & ingredients substring search
     if q:
         pat = f"%{q}%"
         query = query.filter(
@@ -91,10 +87,9 @@ def get_all_recipes(
             )
         ).order_by(DBRecipe.title.ilike(pat).desc())
 
-    # 2) AND‑logic tag filtering (JSON-as-text ILIKE)
     if tags:
-        for t in tags:
-            query = query.filter(cast(DBRecipe.tags, String).ilike(f'%"{t}"%'))
+        # JSONB @> array containment: all elements in `tags` must be present
+        query = query.filter(DBRecipe.tags.contains(tags))
 
     recipes = query.offset(skip).limit(limit).all()
 

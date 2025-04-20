@@ -21,11 +21,11 @@ class RegisterRequest(BaseModel):
 
 @router.post("/register")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    # check for existing user
+    # 1) Check for existing user
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-
-    # create & persist new user
+    
+    # 2) Create & save new user
     new_user = User(
         email=req.email,
         hashed_password=hash_password(req.password),
@@ -34,8 +34,11 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(new_user)
     db.commit()
+    
+    # 3) Issue JWT so front‑end can auto‑login
+    token = create_access_token({"sub": new_user.email})
+    return {"access_token": token, "token_type": "bearer"}
 
-    return {"message": "User registered successfully"}
 
 
 @router.post("/login")

@@ -8,7 +8,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    preferred_language = Column(String, default="en")
+    preferred_language = Column(String, default="English")
     preferred_units = Column(String, default="metric")
 
     recipes = relationship("Recipe", back_populates="user")
