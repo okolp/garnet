@@ -26,8 +26,9 @@ Here's how you should operate:
     *   `title` (string): The title of the recipe.
     *   `ingredients` (list of strings): A list of ingredients required for the recipe.  Each ingredient should be a short, descriptive string.
     *   `steps` (list of strings): A list of steps to prepare the recipe. Each step should be a short, concise instruction. Each step is one action.
-    *   `tags` (list of strings): A list of 3-5 keywords or tags that describe the recipe, must be from the list provided below.
+    *   `tags` (list of strings): A list of 3 keywords or tags that describe the recipe, must be from the list provided below. They must be accurate and make sense.
     *   `image_url` (string, optional): If the recipe text includes a URL to an image of the finished dish, extract it. If there is no image URL, set this to `null`.
+
 
 3.  **Output JSON Only:** Your response MUST be a valid JSON object representing the extracted recipe data.  Do NOT include any introductory text, explanations, or other extraneous content. Do NOT include any markdown formatting (e.g., code blocks). Return ONLY the JSON.
 
@@ -55,7 +56,7 @@ Here's how you should operate:
     }}
     ```
 
-5. list of tags: Breakfast, Brunch, Lunch, Dinner, Snack, Appetizer, Side Dish, Dessert, Drink, Soup, Salad, Main Course, Italian, Mexican, Chinese, Japanese, Thai, Indian, Mediterranean, Middle Eastern, French, American, Greek, Korean, Spanish, Vietnamese, Polish, Turkish, One-Pot, Slow Cooker, Instant Pot, Grilled, Baked, Roasted, Air Fryer, Steamed, No-Cook, Raw, Fried, Smoked, Vegetarian, Vegan, Gluten-Free, Dairy-Free, Keto, Low-Carb
+5. list of tags: Breakfast, Brunch, Lunch, Dinner, Snack, Appetizer, Dessert, Drink, Soup, Salad, Italian, Mexican, Chinese, Japanese, Thai, Indian, Middle Eastern, Greek, Korean, Spanish, Vietnamese, Polish, Turkish, Vegetarian, Vegan.
 
 Here is the content:
 ---
@@ -69,8 +70,18 @@ def clean_gemini_output(text: str) -> str:
         return re.sub(r"^```(?:json)?\n|\n```$", "", text.strip(), flags=re.IGNORECASE)
     return text
 
-def process_recipe_text_with_ai(raw_text: str) -> dict:
-    prompt = PROMPT_TEMPLATE.format(text=raw_text)
+def process_recipe_text_with_ai(raw_text: str, language: str = "English", units: str = "metric") -> dict:
+    dynamic_instructions = f"""
+6.  **Translate & Convert:**
+    - Translate the recipe and tags into **{language}**.
+    - Convert ingredient measurements to **{units}** units (e.g., grams/milliliters or ounces/cups).
+    - Be accurate and culturally appropriate where possible.
+    """
+
+    prompt = PROMPT_TEMPLATE.replace(
+        "Here is the content:",
+        f"{dynamic_instructions}\n\nHere is the content:"
+    ).format(text=raw_text)
 
     try:
         model = genai.GenerativeModel(MODEL_NAME)

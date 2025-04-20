@@ -16,53 +16,60 @@ class _RecipeUrlInputPageState extends State<RecipeUrlInputPage> {
   Map<String, dynamic>? _recipe;
 
   Future<void> _submitUrl() async {
-    setState(() {
-      _loading = true;
-      _recipe = null;
-    });
+  setState(() {
+    _loading = true;
+    _recipe = null;
+  });
 
-    final url = Uri.parse('http://127.0.0.1:8000/recipes/from-url');
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"url": _urlController.text}),
+  final token = await AuthService.getToken(); // 🔐 Fetch token
+
+  final url = Uri.parse('http://127.0.0.1:8000/recipes/from-url');
+  final response = await http.post(
+    url,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token", // ✅ Add this
+    },
+    body: jsonEncode({"url": _urlController.text}),
+  );
+
+  if (response.statusCode == 200) {
+    final decodedBody = utf8.decode(response.bodyBytes);
+    final data = jsonDecode(decodedBody);
+    final recipe = data['recipe'];
+
+    final saveResponse = await http.post(
+      Uri.parse('http://127.0.0.1:8000/recipes/save'),
+      headers: {
+        "Content-Type": "application/json",
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(recipe),
     );
 
-    if (response.statusCode == 200) {
-      final decodedBody = utf8.decode(response.bodyBytes);
-      final data = jsonDecode(decodedBody);
-      final recipe = data['recipe'];
-
-      final token = await AuthService.getToken();
-      final saveResponse = await http.post(
-        Uri.parse('http://127.0.0.1:8000/recipes/save'),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(recipe),
-      );
-
-      if (saveResponse.statusCode == 200) {
-        final saveResult = jsonDecode(saveResponse.body);
-        print("✅ Saved recipe with ID: ${saveResult["id"]}");
-      } else {
-        print("❌ Failed to save recipe: ${saveResponse.statusCode}");
-      }
-
-      setState(() {
-        _recipe = recipe;
-      });
+    if (saveResponse.statusCode == 200) {
+      final saveResult = jsonDecode(saveResponse.body);
+      print("✅ Saved recipe with ID: ${saveResult["id"]}");
     } else {
-      setState(() {
-        _recipe = {"error": "Failed: ${response.statusCode}\n${response.body}"};
-      });
+      print("❌ Failed to save recipe: ${saveResponse.statusCode}");
     }
 
     setState(() {
-      _loading = false;
+      _recipe = recipe;
+    });
+  } else {
+    setState(() {
+      _recipe = {
+        "error": "Failed: ${response.statusCode}\n${response.body}"
+      };
     });
   }
+
+  setState(() {
+    _loading = false;
+  });
+}
+
 
   Widget _buildRecipeDetails() {
     if (_recipe == null) return const SizedBox();

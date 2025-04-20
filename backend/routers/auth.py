@@ -14,7 +14,9 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-
+    preferred_language: str
+    preferred_units: str
+    
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -26,7 +28,9 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     
     new_user = User(
         email=req.email,
-        hashed_password=hash_password(req.password)
+        hashed_password=hash_password(req.password),
+        preferred_language=req.preferred_language,
+        preferred_units=req.preferred_units
     )
     db.add(new_user)
     db.commit()

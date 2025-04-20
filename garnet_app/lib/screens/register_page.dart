@@ -14,7 +14,17 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool _loading = false;
+
+  String _selectedLanguage = 'English';
+  String _selectedUnits = 'metric';
+
+  final List<String> _languages = [
+    'English', 'German', 'Spanish', 'French', 'Dutch', 'Polish', 'Turkish'
+  ];
+
+  final List<String> _units = ['metric', 'imperial'];
 
   Future<void> _register() async {
     setState(() => _loading = true);
@@ -25,6 +35,8 @@ class _RegisterPageState extends State<RegisterPage> {
       body: jsonEncode({
         "email": _emailController.text.trim(),
         "password": _passwordController.text.trim(),
+        "preferred_language": _selectedLanguage,
+        "preferred_units": _selectedUnits,
       }),
     );
 
@@ -53,7 +65,7 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(title: const Text("Register")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
           children: [
             TextField(
               controller: _emailController,
@@ -65,6 +77,30 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(labelText: "Password"),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedLanguage,
+              items: _languages
+                  .map((lang) => DropdownMenuItem(
+                        value: lang,
+                        child: Text(lang),
+                      ))
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedLanguage = val!),
+              decoration: const InputDecoration(labelText: "Preferred Language"),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedUnits,
+              items: _units
+                  .map((unit) => DropdownMenuItem(
+                        value: unit,
+                        child: Text(unit == 'metric' ? 'Metric (g, ml)' : 'Imperial (oz, cups)'),
+                      ))
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedUnits = val!),
+              decoration: const InputDecoration(labelText: "Measurement System"),
             ),
             const SizedBox(height: 24),
             ElevatedButton(

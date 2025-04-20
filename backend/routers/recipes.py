@@ -4,7 +4,10 @@ from scraping.scraper import extract_raw_text_and_image
 from services.ai_processor import process_recipe_text_with_ai
 from dependencies import get_current_user
 from models.users import User  # if not already imported
-
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from dependencies import get_db
+from models.recipe import Recipe as DBRecipe
 
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
@@ -13,12 +16,25 @@ class RecipeRequest(BaseModel):
     url: HttpUrl
 
 @router.post("/from-url")
-def extract_recipe_from_url(request: RecipeRequest):
+def extract_recipe_from_url(
+    request: RecipeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Will be None if not authenticated
+):
     try:
         scraped = extract_raw_text_and_image(request.url)
-        recipe_data = process_recipe_text_with_ai(scraped["text"])
 
-        # Fallback to scraped image if AI didn't return one
+        # Use user preferences or defaults
+        preferred_language = current_user.preferred_language if current_user else "English"
+        preferred_units = current_user.preferred_units if current_user else "metric"
+
+        recipe_data = process_recipe_text_with_ai(
+            raw_text=scraped["text"],
+            language=preferred_language,
+            units=preferred_units
+        )
+
+        # Fallback to scraped image if missing
         if not recipe_data.get("image_url") and scraped.get("image_url"):
             recipe_data["image_url"] = scraped["image_url"]
 
@@ -27,10 +43,7 @@ def extract_recipe_from_url(request: RecipeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from dependencies import get_db
-from models.recipe import Recipe as DBRecipe
+
 
 
 @router.post("/save")
