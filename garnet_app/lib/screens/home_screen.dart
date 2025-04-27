@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'recipe_url_input.dart';
 import 'recipe_list.dart';
+import 'recipe_image_input.dart';
 import '../auth/auth_service.dart';
 
 
@@ -16,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const RecipeUrlInputPage(),
+    const RecipeImageInputPage(), 
     const RecipeListPage(),
   ];
 
@@ -28,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (int index) => setState(() => _selectedIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Import URL'),
+          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Import Photo'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Saved Recipes'),
         ],
       ),

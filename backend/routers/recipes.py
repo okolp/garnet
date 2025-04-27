@@ -10,6 +10,8 @@ from services.ai_processor import process_recipe_text_with_ai
 from dependencies import get_db, get_current_user
 from models.users import User
 from models.recipe import Recipe as DBRecipe
+from fastapi import UploadFile, File
+from services.ai_processor import process_recipe_image_with_ai
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
@@ -148,3 +150,45 @@ def edit_recipe(
     db.commit()
     db.refresh(recipe)
     return {"message": "Recipe updated"}
+
+@router.post("/from-image")
+async def extract_recipe_from_image(
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Accepts a recipe photo upload, runs a Gemini multimodal model
+    to extract structured recipe data, then returns it.
+    """
+    try:
+        # Read image bytes
+        contents = await image.read()
+
+        # Call your new AI helper (see below)
+        recipe_data = process_recipe_image_with_ai(
+            image_bytes=contents,
+            language=current_user.preferred_language if current_user else "English",
+            units=current_user.preferred_units if current_user else "metric"
+        )
+
+        # Fallback: if AI didn’t pick up an image_url, attach one (optional)
+        # recipe_data["image_url"] = recipe_data.get("image_url") or save_to_storage(contents)
+
+        # Save to DB exactly like /save
+        db_recipe = DBRecipe(
+            title=recipe_data["title"],
+            ingredients=recipe_data["ingredients"],
+            steps=recipe_data["steps"],
+            tags=recipe_data.get("tags", []),
+            image_url=recipe_data.get("image_url"),
+            user_id=current_user.id,
+        )
+        db.add(db_recipe)
+        db.commit()
+        db.refresh(db_recipe)
+
+        return {"id": db_recipe.id, "recipe": recipe_data}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image processing failed: {e}")

@@ -2,6 +2,8 @@ import os
 import google.generativeai as genai
 import json
 import re
+import io
+from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +28,7 @@ Here's how you should operate:
     *   `title` (string): The title of the recipe.
     *   `ingredients` (list of strings): A list of ingredients required for the recipe.  Each ingredient should be a short, descriptive string.
     *   `steps` (list of strings): A list of steps to prepare the recipe. Each step should be a short, concise instruction. Each step is one action.
-    *   `tags` (list of strings): A list of 3 keywords or tags that describe the recipe, must be from the list provided below. They must be accurate and make sense.
+    *   `tags` (list of strings): A list of 3 keywords or tags that describe the recipe, must be from the list provided below. They must be accurate and make sense. Start with capital letters.
     *   `image_url` (string, optional): If the recipe text includes a URL to an image of the finished dish, extract it. If there is no image URL, set this to `null`.
 
 
@@ -48,9 +50,9 @@ Here's how you should operate:
         "Bake at 350F for 20 minutes."
       ],
       "tags": [
-        "breakfast",
-        "vegetarian",
-        "italian"
+        "Breakfast",
+        "Vegetarian",
+        "Italian"
       ],
       "image_url": null
     }}
@@ -101,3 +103,34 @@ def process_recipe_text_with_ai(raw_text: str, language: str = "English", units:
     except Exception as e:
         print(f"[AI ERROR] {e}")
         raise RuntimeError("AI processing failed")
+
+def process_recipe_image_with_ai(
+    image_bytes: bytes,
+    language: str = "English",
+    units: str = "metric"
+) -> dict:
+    # 1) Prepare dynamic instructions exactly as in text flow
+    dynamic = f"""
+6.  **Translate & Convert:**
+    - Translate into **{language}**.
+    - Convert measurements to **{units}**.
+"""
+    prompt = PROMPT_TEMPLATE.replace(
+        "Here is the content:",
+        f"{dynamic}\n\nHere is the image:"
+    ).format(text="<see image>")  # we signal the model to look at the image
+
+    # 2) Load the image into a Pillow Image
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+    # 3) Call Gemini, passing [prompt, img] as multimodal input
+    model = genai.GenerativeModel(MODEL_NAME)
+    response = model.generate_content([prompt, img])
+
+    # 4) Strip any markdown fences and parse JSON
+    raw = clean_gemini_output(response.text.strip())
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"[JSON ERROR]\n{raw}")
+        raise RuntimeError("AI returned invalid JSON")
